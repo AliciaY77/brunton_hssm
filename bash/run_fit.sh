@@ -15,4 +15,4 @@ source ${MAMBA_ROOT_PREFIX}/etc/profile.d/conda.sh
 conda activate hssm
 export PYTHONPATH=/users/xyuan48/brunton_hssm:$PYTHONPATH
 echo "PYTHONPATH: $PYTHONPATH"
-python -u src/fit_lan.py --n_parameter_sets 100 --n_samples_per_set 100
+python -u src/fit_lan.py --gain 1.0 --seed 42
