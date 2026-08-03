@@ -5,21 +5,21 @@ Matches the exact implementation in RNN_Threshold_Alicia/scripts/brunton_model.p
     a <- a + lambda*a*dt + sigma_s*x_t + acc_noise*randn()
 
 Free parameters for LAN training:
-    lam     : memory parameter, range (-0.5, 0.5)
-    B       : decision bound |a| >= B, range (0.5, 3.0)
+    lam     : memory parameter, range (-2.0, 2.0)
+    B       : decision bound |a| >= B, range (1.0, 15.0)
 
 Fixed parameters (matching original):
     sigma_s  = 1.0
-    acc_noise = 0.1
-    T        = 40
-    dt       = 1.0
-    noise    = 0.5  (stimulus noise std)
+    acc_noise = 0.1  (per-timestep)
+    T        = 750
+    dt       = 0.02
+    noise    = 0.5  (stimulus noise std, per-timestep)
 
 Coherence is included as a trial-level covariate (not a free parameter).
 Each simulated trial uses a randomly drawn coherence from [-0.15, 0.15].
 
 Output format for HSSM:
-    rt       : reaction time in seconds (timesteps * 0.025)
+    rt       : reaction time in seconds (timesteps * dt)
     response : 1 (correct/right) or -1 (incorrect/left)
     coherence: absolute coherence value used in that trial
 """
@@ -28,10 +28,10 @@ import pathlib
 
 # Fixed parameters matching brunton_model.py
 SIGMA_S   = 1.0
-ACC_NOISE = 0.1
-T         = 40
-DT        = 1.0
-NOISE     = 0.5
+ACC_NOISE = 0.1  # per-timestep
+T         = 750
+DT        = 0.02
+NOISE     = 0.5  # per-timestep
 COH_LEVELS = np.linspace(-0.15, 0.15, 11)
 
 
@@ -54,7 +54,7 @@ def simulate_one_trial(lam, B, coherence):
         response = 1.0 if a > 0 else -1.0
     else:
         response = 1.0 if a < 0 else -1.0
-    rt_seconds = rt * 0.025
+    rt_seconds = rt * DT
     return rt_seconds, response
 
 
@@ -71,8 +71,8 @@ def generate_training_data(n_parameter_sets=2000, n_samples_per_set=500, seed=42
     """
     np.random.seed(seed)
 
-    lam_range = (-0.5, 0.5)
-    B_range   = (0.5, 3.0)
+    lam_range = (-2.0, 2.0)
+    B_range   = (1.0, 15.0)
 
     all_rows = []
     total = n_parameter_sets * n_samples_per_set
@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     print("Generating Brunton LAN training data...")
     print(f"  Fixed: sigma_s={SIGMA_S}, acc_noise={ACC_NOISE}, T={T}, dt={DT}, noise={NOISE}")
-    print(f"  Free:  lam in (-0.5, 0.5), B in (0.5, 3.0)")
+    print(f"  Free:  lam in (-2.0, 2.0), B in (1.0, 15.0)")
     print(f"  Covariate: coherence in {COH_LEVELS.tolist()}")
 
     data = generate_training_data(n_parameter_sets=2000, n_samples_per_set=500)

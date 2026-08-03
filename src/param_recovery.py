@@ -66,15 +66,15 @@ def build_brunton_distribution():
         rv="brunton",
         loglik=loglik_op,
         list_params=["lam", "B", "coherence"],
-        bounds={"lam": (-0.5, 0.5), "B": (0.5, 3.0)},
+        bounds={"lam": (-2.0, 2.0), "B": (1.0, 15.0)},
     )
 
 
 def fit_one(df: pd.DataFrame, BruntonDist, draws: int = 500, tune: int = 500):
     obs = df[["rt", "response", "coherence"]].values.astype(np.float32)
     with pm.Model():
-        lam = pm.Uniform("lam", lower=-0.5, upper=0.5)
-        B   = pm.Uniform("B",   lower=0.5,  upper=3.0)
+        lam = pm.Uniform("lam", lower=-2.0, upper=2.0)
+        B   = pm.Uniform("B",   lower=1.0,  upper=15.0)
         BruntonDist("obs", lam=lam, B=B, coherence=obs[:, 2], observed=obs[:, :2])
         idata = pm.sample(draws=draws, tune=tune, chains=2, cores=2,
                           target_accept=0.9, random_seed=42,
