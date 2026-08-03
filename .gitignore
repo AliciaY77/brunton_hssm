@@ -1,0 +1,10 @@
+train_data/*
+cluster/log/*
+__pycache__/
+*.pyc
+*.nc
+*.npy
+*.pickle
+*.onnx
+!train_data/.gitkeep
+!cluster/log/.gitkeep
