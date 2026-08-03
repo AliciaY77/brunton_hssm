@@ -77,7 +77,8 @@ def fit_one(df: pd.DataFrame, BruntonDist, draws: int = 500, tune: int = 500):
         B   = pm.Uniform("B",   lower=0.5,  upper=3.0)
         BruntonDist("obs", lam=lam, B=B, coherence=obs[:, 2], observed=obs[:, :2])
         idata = pm.sample(draws=draws, tune=tune, chains=2, cores=2,
-                          target_accept=0.9, random_seed=42, progressbar=False)
+                          target_accept=0.9, random_seed=42,
+                          mp_ctx="spawn", progressbar=False)
     return idata
 
 

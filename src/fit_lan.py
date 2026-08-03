@@ -78,6 +78,7 @@ def fit(df: pd.DataFrame, BruntonDist, gain: float, seed: int, draws: int = 1000
             cores=4,
             target_accept=0.9,
             random_seed=42,
+            mp_ctx="spawn",
         )
 
     out_file = OUT_PATH / f"brunton_fit_nxx1_s{seed}_g{gain}"
