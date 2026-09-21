@@ -7,15 +7,15 @@ Matches the exact implementation in RNN_Threshold_Alicia/scripts/brunton_model.p
     a <- a + lambda*a*dt + sigma_s*x_t + acc_noise*randn()
 
 Free parameters for LAN training:
-    lam     : memory parameter, range (-2.0, 2.0)
-    B       : decision bound |a| >= B, range (0.01, 0.5)
+    B       : decision bound |a| >= B, range (8.0, 35.0)
 
-Fixed parameters (matching original):
+Fixed parameters (updated per Ivan's advice):
+    lam      = 0.0  (fixed, not free — not identifiable from RT+choice alone)
     sigma_s  = 1.0
-    acc_noise = 0.1  (per-timestep)
+    acc_noise = 0.6  (per-timestep)
     T        = 750
-    dt       = 0.02
-    noise    = 0.5  (stimulus noise std, per-timestep)
+    dt       = 0.001  (so 750 steps = 750ms, not 15s)
+    noise    = 1.0  (stimulus noise std, per-timestep; e100 family uses NOISE_IN=1.0)
 
 Coherence is included as a trial-level covariate (not a free parameter).
 Each simulated trial uses a randomly drawn coherence from [-0.15, 0.15].
@@ -28,30 +28,36 @@ Output format for HSSM:
 import numpy as np
 import pathlib
 
-# Fixed parameters matching brunton_model.py
+# Fixed parameters — updated per Ivan's advice
 SIGMA_S   = 1.0
-ACC_NOISE = 0.1  # per-timestep
+ACC_NOISE = 0.6      # was 0.1 — needed to hit target accuracy
 T         = 750
-DT        = 0.02
-NOISE     = 0.5  # per-timestep
+DT        = 0.001    # was 0.02 — so 750 steps = 750ms, not 15s
+NOISE     = 1.0      # was 0.5 — e100 family uses NOISE_IN=1.0
 COH_LEVELS = np.linspace(-0.15, 0.15, 11)
 
+# Free parameters
+# lam is FIXED at 0.0 (not free) — not identifiable from RT+choice alone
+LAM = 0.0
+B_RANGE = (8.0, 35.0)   # was (0.01, 0.5) — must cover target B≈22-23
 
-def simulate_one_trial(lam, B, coherence):
-    """Simulate a single trial. Returns (rt_seconds, response).
+
+def simulate_one_trial(B, coherence):
+    """Simulate a single trial with lam fixed at 0.
+    Returns (rt_seconds, response).
     response: 1=correct, -1=incorrect (accuracy coding for HSSM)
     """
     a = 0.0
     rt = T
     for t in range(T):
         x_t = coherence + NOISE * np.random.randn()
-        a = a + lam * a * DT + SIGMA_S * x_t + ACC_NOISE * np.random.randn()
+        a = a + LAM * a * DT + SIGMA_S * x_t + ACC_NOISE * np.random.randn()
         if abs(a) >= B:
             rt = t + 1
             break
-    # Accuracy coding: correct if accumulator sign matches coherence sign
+    # Zero-coherence bug fix: random 50/50 response
     if coherence == 0:
-        response = 1.0  # treat zero coherence as correct by convention
+        response = 1.0 if np.random.rand() < 0.5 else -1.0
     elif coherence > 0:
         response = 1.0 if a > 0 else -1.0
     else:
@@ -60,37 +66,33 @@ def simulate_one_trial(lam, B, coherence):
     return rt_seconds, response
 
 
-def generate_training_data(n_parameter_sets=2000, n_samples_per_set=500, seed=42):
+def generate_training_data(n_parameter_sets=500, n_samples_per_set=4000, seed=42):
     """
-    Generate LAN training data by uniformly sampling (lam, B) parameter sets
+    Generate LAN training data by uniformly sampling B parameter sets
     and simulating trials with random coherence levels.
 
-    Returns numpy array of shape (n_parameter_sets * n_samples_per_set, 5):
-        columns: [lam, B, coherence, rt, response]
+    Returns numpy array of shape (n_parameter_sets * n_samples_per_set, 4):
+        columns: [B, coherence, rt, response]
 
-    Note: coherence is included as a trial-level covariate so the LAN
-    can learn how coherence modulates the RT/choice distribution.
+    Note: coherence (absolute value) is included as a trial-level covariate
+    so the LAN can learn how coherence modulates the RT/choice distribution.
     """
     np.random.seed(seed)
-
-    lam_range = (-2.0, 2.0)
-    B_range   = (0.01, 0.5)
 
     all_rows = []
     total = n_parameter_sets * n_samples_per_set
 
     for i in range(n_parameter_sets):
-        if i % 200 == 0:
+        if i % 50 == 0:
             print(f"  Parameter set {i}/{n_parameter_sets} "
                   f"({len(all_rows):,}/{total:,} trials)")
 
-        lam = np.random.uniform(*lam_range)
-        B   = np.random.uniform(*B_range)
+        B = np.random.uniform(*B_RANGE)
 
         for _ in range(n_samples_per_set):
-            coh = np.random.choice(COH_LEVELS)
-            rt, resp = simulate_one_trial(lam, B, coh)
-            all_rows.append([lam, B, float(coh), rt, float(resp)])
+            coh = float(np.random.choice(COH_LEVELS))
+            rt, resp = simulate_one_trial(B, coh)
+            all_rows.append([B, abs(coh), rt, float(resp)])
 
     data = np.array(all_rows, dtype=np.float32)
     print(f"Done. Generated {len(data):,} training examples.")
@@ -103,11 +105,11 @@ if __name__ == "__main__":
     out_path = out_dir / "brunton_training_data_t750_smallB.npy"
 
     print("Generating Brunton LAN training data...")
-    print(f"  Fixed: sigma_s={SIGMA_S}, acc_noise={ACC_NOISE}, T={T}, dt={DT}, noise={NOISE}")
-    print(f"  Free:  lam in (-2.0, 2.0), B in (0.01, 0.5)")
+    print(f"  Fixed: lam={LAM}, sigma_s={SIGMA_S}, acc_noise={ACC_NOISE}, T={T}, dt={DT}, noise={NOISE}")
+    print(f"  Free:  B in {B_RANGE}")
     print(f"  Covariate: coherence in {COH_LEVELS.tolist()}")
 
-    data = generate_training_data(n_parameter_sets=2000, n_samples_per_set=500)
+    data = generate_training_data(n_parameter_sets=500, n_samples_per_set=4000)
     np.save(out_path, data)
     print(f"Saved to {out_path}  shape={data.shape}")
-    print("Columns: [lam, B, coherence, rt, response]")
+    print("Columns: [B, coherence, rt, response]")

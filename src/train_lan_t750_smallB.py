@@ -28,7 +28,7 @@ def main():
     labels = d['labels']
     print(f"  data shape:   {data.shape}")
     print(f"  labels shape: {labels.shape}")
-    print(f"  input_dim: {data.shape[1]}  (lam, B, coherence, rt, response)")
+    print(f"  input_dim: {data.shape[1]}  (B, coherence, rt, response)")
 
     # Save in a format DatasetTorch expects: dict with 'data' and 'labels'
     torch_data_path = MODEL_SAVE_DIR / "brunton_torch.pickle"
@@ -104,8 +104,8 @@ def main():
     print(f"ONNX model saved to {onnx_path}")
     print(f"\nTo use in HSSM:")
     print(f"  from hssm.distribution_utils import make_distribution, make_likelihood_callable")
-    print(f"  loglik_op = make_likelihood_callable(loglik='{onnx_path}', loglik_kind='approx_differentiable', backend='jax', params_is_reg=[False, False, False])")
-    print(f"  BruntonDist = make_distribution(rv='brunton', loglik=loglik_op, list_params=['lam', 'B', 'coherence'], bounds={{'lam': (-0.5, 0.5), 'B': (0.5, 3.0)}})")
+    print(f"  loglik_op = make_likelihood_callable(loglik='{onnx_path}', loglik_kind='approx_differentiable', backend='jax', params_is_reg=[False, False])")
+    print(f"  BruntonDist = make_distribution(rv='brunton', loglik=loglik_op, list_params=['B', 'coherence'], bounds={{'B': (8.0, 35.0)}})")
 
 
 if __name__ == "__main__":

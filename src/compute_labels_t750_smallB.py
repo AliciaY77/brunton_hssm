@@ -1,10 +1,10 @@
 """
 Compute KDE-based log-likelihood labels for LAN training.
 
-For each unique (lam, B, coherence) combination, fit a KDE over the
+For each unique (B, coherence) combination, fit a KDE over the
 simulated RT distributions separately for each response (-1, +1),
 then evaluate the KDE at each observed (rt, response) to get
-approximate log p(rt, response | lam, B, coherence).
+approximate log p(rt, response | B, coherence).
 
 This follows the approach described in Fengler et al. (2021).
 """
@@ -19,23 +19,21 @@ OUT_PATH   = pathlib.Path(__file__).resolve().parents[1] / "train_data" / "brunt
 
 def compute_labels(data, bandwidth=0.1):
     """
-    data: array of shape (N, 5) with columns [lam, B, coherence, rt, response]
+    data: array of shape (N, 4) with columns [B, coherence, rt, response]
     Returns labels array of shape (N,) with log-likelihood values.
     """
     labels = np.full(len(data), -10.0, dtype=np.float32)
 
-    lam  = data[:, 0]
-    B    = data[:, 1]
-    coh  = data[:, 2]
-    rts  = data[:, 3]
-    resp = data[:, 4]
+    B    = data[:, 0]
+    coh  = data[:, 1]
+    rts  = data[:, 2]
+    resp = data[:, 3]
 
-    # Round params for grouping
-    lam_r = np.round(lam, 2)
-    B_r   = np.round(B, 2)
+    # Round params for grouping (wider B range needs coarser bins for enough samples per group)
+    B_r   = np.round(B, 1)
     coh_r = np.round(coh, 3)
 
-    keys = np.stack([lam_r, B_r, coh_r], axis=1)
+    keys = np.stack([B_r, coh_r], axis=1)
     unique_keys, inverse = np.unique(keys, axis=0, return_inverse=True)
 
     print(f"Computing KDE labels for {len(unique_keys)} unique parameter groups...")
